@@ -28,7 +28,7 @@
   retries: "{{ garage_download_retries }}"
   delay: 5
   when: >
-    garage_current_version is not defined or 
+    garage_current_version is not defined or
     garage_current_version != garage_version
   notify:
     - restart garage
@@ -44,7 +44,7 @@
   ansible.builtin.systemd:
     name: garage
     state: stopped
-  when: 
+  when:
     - garage_download is changed
     - garage_current_version is defined
   ignore_errors: true

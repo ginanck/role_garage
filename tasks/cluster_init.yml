@@ -16,7 +16,7 @@
 - name: Parse node ID from cluster status
   ansible.builtin.set_fact:
     garage_node_id: "{{ garage_cluster_status.stdout | regex_search('([a-f0-9]{16})\\s+\\S+\\s+' + garage_rpc_public_addr, '\\1') | first }}"
-  when: 
+  when:
     - garage_cluster_status.rc == 0
     - garage_cluster_status.stdout is search(garage_rpc_public_addr)
 
@@ -69,7 +69,7 @@
         msg: "Layout successfully configured: {{ garage_layout_verify.stdout_lines }}"
       when: garage_layout_verify.rc == 0
 
-  when: 
+  when:
     - garage_cluster_mode == "single"
     - garage_node_id is defined
     - garage_layout_status.rc != 0 or 'zone' not in garage_layout_status.stdout
@@ -90,17 +90,17 @@
         content: |
           # Garage Cluster Configuration
           # Generated on {{ ansible_date_time.iso8601 }}
-          
+
           Node ID: {{ garage_node_id | default('unknown') }}
           RPC Address: {{ garage_rpc_public_addr }}
           Zone: {{ garage_layout_zone }}
           Capacity: {{ garage_layout_capacity }}
-          
+
           # For multi-node setup, run these commands on each node:
           # 1. Get node IDs: garage status
           # 2. Assign layout: garage layout assign -z <zone> -c <capacity> <node_id>
           # 3. Apply layout: garage layout apply --version 1
-          
+
           # Cluster nodes configuration:
           {% for node in garage_cluster_nodes %}
           - Name: {{ node.name | default('unknown') }}
@@ -113,7 +113,7 @@
         group: "{{ garage_group }}"
         mode: "0640"
 
-  when: 
+  when:
     - garage_cluster_mode == "cluster"
     - garage_cluster_nodes | length > 0
 

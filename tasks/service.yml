@@ -48,7 +48,7 @@
     host: "{{ garage_rpc_bind_addr.split(':')[0].replace('[', '').replace(']', '') | regex_replace('^::', '0.0.0.0') }}"
     delay: 5
     timeout: 60
-  when: 
+  when:
     - garage_service_state == "started"
     - garage_rpc_bind_addr != ""
 
@@ -73,7 +73,7 @@
       Authorization: "Bearer {{ garage_admin_token_generated }}"
   register: garage_health_check
   failed_when: false
-  when: 
+  when:
     - garage_features.admin_api_enabled
     - garage_service_state == "started"
     - garage_admin_token_generated is defined
