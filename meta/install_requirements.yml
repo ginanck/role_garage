@@ -1,0 +1,15 @@
+---
+
+roles: []
+collections:
+  # Third Party Collections
+  # https://galaxy.ansible.com/ui/repo/published/community/general/docs/
+  # https://github.com/ansible-collections/community.general
+  - name: community.general
+    version: 6.6.1
+
+  # https://galaxy.ansible.com/ui/repo/published/ansible/posix/docs/
+  # https://galaxy.ansible.com/ui/repo/published/ansible/posix/docs/
+  # https://github.com/ansible-collections/ansible.posix
+  - name: ansible.posix
+    version: 1.5.4
