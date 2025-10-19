@@ -33,6 +33,12 @@
   notify:
     - restart garage
 
+- name: Ensure downloaded binary is executable
+  ansible.builtin.file:
+    path: "/tmp/garage-{{ garage_version }}"
+    mode: "{{ garage_file_mode }}"
+  when: garage_download is changed
+
 - name: Verify downloaded binary is executable
   ansible.builtin.command:
     cmd: "/tmp/garage-{{ garage_version }} --version"
