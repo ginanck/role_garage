@@ -1,0 +1,110 @@
+---
+# Garage Installation Configuration
+garage_version: "v2.1.0"
+garage_arch_map:
+  x86_64: "x86_64-unknown-linux-musl"
+  aarch64: "aarch64-unknown-linux-musl"
+  armv7l: "armv6l-unknown-linux-musleabihf"
+  i386: "i686-unknown-linux-musl"
+
+# Installation paths
+garage_bin_path: "/usr/local/bin/garage"
+garage_config_dir: "/etc/garage"
+garage_config_file: "{{ garage_config_dir }}/garage.toml"
+
+# Service configuration
+garage_user: "garage"
+garage_group: "garage"
+garage_home: "/var/lib/garage"
+
+# Data directories
+garage_metadata_dir: "{{ garage_home }}/meta"
+garage_data_dir: "{{ garage_home }}/data"
+
+# Database engine (sqlite, lmdb, sled)
+garage_db_engine: "sqlite"
+
+# Network configuration
+garage_rpc_bind_addr: "[::]:3901"
+garage_rpc_public_addr: "{{ ansible_default_ipv4.address | default('127.0.0.1') }}:3901"
+
+# Generate a secure RPC secret if not provided
+garage_rpc_secret: ""  # Will be auto-generated if empty
+
+# S3 API configuration
+garage_s3_api:
+  s3_region: "garage"
+  api_bind_addr: "[::]:3900"
+  root_domain: ".s3.garage.localhost"
+
+# S3 Web configuration
+garage_s3_web:
+  bind_addr: "[::]:3902"
+  root_domain: ".web.garage.localhost"
+  index: "index.html"
+
+# K2V API configuration (optional)
+garage_k2v_api_enabled: true
+garage_k2v_api:
+  api_bind_addr: "[::]:3904"
+
+# Admin API configuration
+garage_admin_api:
+  api_bind_addr: "[::]:3903"
+  admin_token: ""  # Will be auto-generated if empty
+  metrics_token: ""  # Will be auto-generated if empty
+
+# Cluster configuration
+garage_replication_factor: 1  # Start with 1 for single node, can be increased later
+
+# Cluster layout configuration
+garage_bootstrap_cluster: true
+garage_layout_zone: "dc1"
+garage_layout_capacity: "1G"
+
+# Log level configuration
+garage_log_level: "info"
+
+# Service management
+garage_service_enabled: true
+garage_service_state: "started"
+
+# Systemd service configuration
+garage_systemd_service:
+  description: "Garage S3-compatible object storage"
+  documentation: "https://garagehq.deuxfleurs.fr"
+  after: "network.target"
+  wants: "network.target"
+  restart: "always"
+  restart_sec: 5
+  user: "{{ garage_user }}"
+  group: "{{ garage_group }}"
+  working_directory: "{{ garage_home }}"
+  exec_start: "{{ garage_bin_path }} -c {{ garage_config_file }} server"
+  environment:
+    RUST_LOG: "garage={{ garage_log_level }}"
+
+# Download configuration
+garage_download_url: "https://garagehq.deuxfleurs.fr/_releases/{{ garage_version }}/{{ garage_architecture }}/garage"
+garage_download_timeout: 120
+garage_download_retries: 3
+
+# Security settings
+garage_file_mode: "0755"
+garage_config_mode: "0640"
+garage_data_mode: "0750"
+
+# Extensibility settings for future cluster support
+garage_cluster_mode: "single"  # single, cluster
+garage_cluster_nodes: []  # List of cluster nodes for future multi-node setup
+garage_cluster_discovery_method: "static"  # static, consul, etcd
+
+# Feature flags for extensibility
+garage_features:
+  metrics_enabled: true
+  admin_api_enabled: true
+  k2v_enabled: "{{ garage_k2v_api_enabled }}"
+  website_enabled: true
+
+# Custom configuration override
+garage_custom_config: {}  # Additional configuration options

@@ -1,0 +1,33 @@
+galaxy_info:
+  author: gkorkmaz
+  description: role_garage to install Garage S3 compatible object storage
+
+  namespace: core
+  role_name: role_garage
+
+  license: license (GPL-2.0-or-later, MIT, etc)
+  min_ansible_version: "2.9"
+
+  platforms:
+  - name: Ubuntu
+    versions:
+    - focal     # 20.04
+    - jammy     # 22.04
+    - noble     # 24.04
+  - name: Debian
+    versions:
+    - buster    # 10
+    - bullseye  # 11
+    - bookworm  # 12
+  - name: EL
+    versions:
+    - "7"
+    - "8"
+    - "9"
+  - name: Rocky
+    versions:
+    - "8.0"
+    - "9.0"
+
+  galaxy_tags: []
+dependencies: []

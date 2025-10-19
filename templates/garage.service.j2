@@ -1,0 +1,61 @@
+[Unit]
+Description={{ garage_systemd_service.description }}
+Documentation={{ garage_systemd_service.documentation }}
+After={{ garage_systemd_service.after }}
+Wants={{ garage_systemd_service.wants }}
+
+[Service]
+Type=exec
+User={{ garage_systemd_service.user }}
+Group={{ garage_systemd_service.group }}
+WorkingDirectory={{ garage_systemd_service.working_directory }}
+ExecStart={{ garage_systemd_service.exec_start }}
+
+# Restart configuration
+Restart={{ garage_systemd_service.restart }}
+RestartSec={{ garage_systemd_service.restart_sec }}
+
+# Environment variables
+{% for key, value in garage_systemd_service.environment.items() %}
+Environment="{{ key }}={{ value }}"
+{% endfor %}
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+
+# Allow write access to garage directories
+ReadWritePaths={{ garage_home }}
+ReadWritePaths={{ garage_metadata_dir }}
+ReadWritePaths={{ garage_data_dir }}
+{% if garage_systemd_service.log_to_file | default(false) %}
+ReadWritePaths=/var/log/garage
+{% endif %}
+
+# Network access
+RestrictAddressFamilies=AF_INET AF_INET6
+
+# File system
+ProtectHostname=true
+ProtectKernelLogs=true
+
+# Capabilities
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# Process limits
+LimitNOFILE=65536
+TasksMax=4096
+
+[Install]
+WantedBy=multi-user.target

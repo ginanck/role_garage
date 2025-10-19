@@ -1,0 +1,129 @@
+---
+# Cluster initialization tasks for Garage
+
+- name: Wait for Garage service to be fully ready
+  ansible.builtin.pause:
+    seconds: 10
+  when: garage_service_start is changed
+
+- name: Get cluster status
+  ansible.builtin.command:
+    cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} status"
+  register: garage_cluster_status
+  changed_when: false
+  failed_when: false
+
+- name: Parse node ID from cluster status
+  ansible.builtin.set_fact:
+    garage_node_id: "{{ garage_cluster_status.stdout | regex_search('([a-f0-9]{16})\\s+\\S+\\s+' + garage_rpc_public_addr, '\\1') | first }}"
+  when:
+    - garage_cluster_status.rc == 0
+    - garage_cluster_status.stdout is search(garage_rpc_public_addr)
+
+- name: Display cluster status information
+  ansible.builtin.debug:
+    msg:
+      - "Cluster status command result: {{ garage_cluster_status.rc }}"
+      - "Node ID: {{ garage_node_id | default('not found') }}"
+      - "Cluster mode: {{ garage_cluster_mode }}"
+
+- name: Check if layout is already configured
+  ansible.builtin.command:
+    cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} layout show"
+  register: garage_layout_status
+  changed_when: false
+  failed_when: false
+
+- name: Display current layout status
+  ansible.builtin.debug:
+    msg: "Layout status: {{ 'configured' if garage_layout_status.rc == 0 and 'zone' in garage_layout_status.stdout else 'not configured' }}"
+
+# Single node cluster initialization
+- name: Initialize single-node cluster layout
+  when:
+    - garage_cluster_mode == "single"
+    - garage_node_id is defined
+    - garage_layout_status.rc != 0 or 'zone' not in garage_layout_status.stdout
+  block:
+    - name: Assign layout for single node
+      ansible.builtin.command:
+        cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} layout assign -z {{ garage_layout_zone }} -c {{ garage_layout_capacity }} {{ garage_node_id }}"
+      register: garage_layout_assign
+      when: garage_node_id is defined
+
+    - name: Apply layout configuration
+      ansible.builtin.command:
+        cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} layout apply --version 1"
+      register: garage_layout_apply
+      when: garage_layout_assign is succeeded
+
+    - name: Wait for layout to be applied
+      ansible.builtin.pause:
+        seconds: 5
+      when: garage_layout_apply is succeeded
+
+    - name: Verify layout configuration
+      ansible.builtin.command:
+        cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} layout show"
+      register: garage_layout_verify
+      changed_when: false
+
+    - name: Display layout verification
+      ansible.builtin.debug:
+        msg: "Layout successfully configured: {{ garage_layout_verify.stdout_lines }}"
+      when: garage_layout_verify.rc == 0
+
+# Multi-node cluster initialization (extensibility for future)
+- name: Multi-node cluster configuration placeholder
+  when:
+    - garage_cluster_mode == "cluster"
+    - garage_cluster_nodes | length > 0
+  block:
+    - name: Display multi-node setup message
+      ansible.builtin.debug:
+        msg:
+          - "Multi-node cluster setup detected"
+          - "Nodes to configure: {{ garage_cluster_nodes | length }}"
+          - "This requires additional coordination between nodes"
+          - "Manual intervention may be required for multi-node setup"
+
+    - name: Save cluster information for manual setup
+      ansible.builtin.copy:
+        content: |
+          # Garage Cluster Configuration
+          # Generated on {{ ansible_date_time.iso8601 }}
+
+          Node ID: {{ garage_node_id | default('unknown') }}
+          RPC Address: {{ garage_rpc_public_addr }}
+          Zone: {{ garage_layout_zone }}
+          Capacity: {{ garage_layout_capacity }}
+
+          # For multi-node setup, run these commands on each node:
+          # 1. Get node IDs: garage status
+          # 2. Assign layout: garage layout assign -z <zone> -c <capacity> <node_id>
+          # 3. Apply layout: garage layout apply --version 1
+
+          # Cluster nodes configuration:
+          {% for node in garage_cluster_nodes %}
+          - Name: {{ node.name | default('unknown') }}
+            Address: {{ node.address | default('unknown') }}
+            Zone: {{ node.zone | default(garage_layout_zone) }}
+            Capacity: {{ node.capacity | default(garage_layout_capacity) }}
+          {% endfor %}
+        dest: "{{ garage_config_dir }}/cluster-setup.info"
+        owner: root
+        group: "{{ garage_group }}"
+        mode: "0640"
+
+- name: Final cluster status check
+  ansible.builtin.command:
+    cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} status"
+  register: garage_final_status
+  changed_when: false
+
+- name: Display final cluster information
+  ansible.builtin.debug:
+    msg:
+      - "=== Garage Cluster Status ==="
+      - "{{ garage_final_status.stdout_lines }}"
+      - "==========================="
