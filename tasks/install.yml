@@ -21,7 +21,7 @@
   ansible.builtin.get_url:
     url: "{{ garage_download_url }}"
     dest: "/tmp/garage-{{ garage_version }}"
-    mode: "{{ garage_file_mode }}"
+    mode: "0755"
     timeout: "{{ garage_download_timeout }}"
     force: true
   register: garage_download
@@ -36,7 +36,18 @@
 - name: Ensure downloaded binary is executable
   ansible.builtin.file:
     path: "/tmp/garage-{{ garage_version }}"
-    mode: "{{ garage_file_mode }}"
+    mode: "0755"
+  when: garage_download is changed
+
+- name: Check file permissions and details
+  ansible.builtin.stat:
+    path: "/tmp/garage-{{ garage_version }}"
+  register: garage_binary_stat
+  when: garage_download is changed
+
+- name: Display file information for debugging
+  ansible.builtin.debug:
+    var: garage_binary_stat
   when: garage_download is changed
 
 - name: Verify downloaded binary is executable
@@ -61,7 +72,7 @@
     dest: "{{ garage_bin_path }}"
     owner: root
     group: root
-    mode: "{{ garage_file_mode }}"
+    mode: "0755"
     remote_src: true
   when: garage_download is changed
   notify:

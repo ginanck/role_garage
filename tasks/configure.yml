@@ -46,7 +46,7 @@
     dest: "{{ garage_config_file }}"
     owner: root
     group: "{{ garage_group }}"
-    mode: "{{ garage_config_mode }}"
+    mode: "0640"
     backup: true
   notify:
     - restart garage
