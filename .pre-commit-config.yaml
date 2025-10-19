@@ -1,0 +1,94 @@
+---
+default_stages: [pre-commit, manual]
+default_install_hook_types: [pre-commit, pre-push, commit-msg, prepare-commit-msg]
+
+repos:
+  # Local tools (must be installed in your environment)
+  - repo: local
+    hooks:
+      # ==================== SECURITY HOOKS ====================
+      - id: gitleaks
+        name: GitLeaks Security Scan
+        entry: gitleaks
+        language: system
+        args: ["detect", "--source", ".", "--verbose"]
+        pass_filenames: false
+        always_run: true
+
+      - id: ripsecrets
+        name: ripsecrets
+        entry: ripsecrets
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # ==================== ANSIBLE HOOKS ====================
+      - id: ansible-lint
+        name: ansible-lint
+        entry: ansible-lint
+        language: system
+        args: [-c, .config/ansible-lint.yml, -q]
+        files: \.(yaml|yml)$
+        exclude: ^(molecule/.*|\.github/.*|requirements\.yml$|collections/.*|roles/.*|todo/.*|ansible/.*|\.pre-commit-config.*\.yaml$|\.pre-commit-hooks\.yaml$)
+      
+      # YAML linting
+      - id: yamllint
+        name: yamllint
+        entry: yamllint
+        language: system
+        args: [-c, .config/yamllint.yml]
+        files: \.(yaml|yml)$
+        exclude: ^(\.pre-commit-config.*\.yaml$|\.pre-commit-hooks\.yaml$)
+      
+      # ==================== PYTHON HOOKS ====================
+      - id: flake8
+        name: flake8
+        entry: flake8
+        language: system
+        args: [--config, .config/flake8.conf]
+        files: \.py$
+      
+      - id: black
+        name: black
+        entry: black
+        language: system
+        args: [--config, .config/pyproject.toml]
+        files: \.py$
+
+      - id: isort
+        name: Python Import Sort
+        entry: isort
+        language: system
+        types: [python]
+        args: [--profile, black]
+
+      # ==================== DOCKER HOOKS ====================
+      - id: hadolint
+        name: Dockerfile Lint
+        entry: hadolint
+        language: system
+        types: [dockerfile]
+        args: [--ignore, DL3008, --ignore, DL3009, --ignore, DL3015, --ignore, DL3033]
+
+      # ==================== SHELL HOOKS ====================
+      - id: shellcheck
+        name: Shell Script Check
+        entry: shellcheck
+        language: system
+        types: [shell]
+
+  # General file formatting and validation
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(\.pre-commit-config.*\.yaml$|\.pre-commit-hooks\.yaml$)
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
