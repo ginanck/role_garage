@@ -32,7 +32,7 @@
     state: directory
     owner: "{{ garage_user }}"
     group: "{{ garage_group }}"
-    mode: "{{ garage_data_mode }}"
+    mode: "0750"
 
 - name: Create garage metadata directory
   ansible.builtin.file:
@@ -40,7 +40,7 @@
     state: directory
     owner: "{{ garage_user }}"
     group: "{{ garage_group }}"
-    mode: "{{ garage_data_mode }}"
+    mode: "0750"
 
 - name: Create garage data directory
   ansible.builtin.file:
@@ -48,7 +48,7 @@
     state: directory
     owner: "{{ garage_user }}"
     group: "{{ garage_group }}"
-    mode: "{{ garage_data_mode }}"
+    mode: "0750"
 
 - name: Create garage log directory
   ansible.builtin.file:

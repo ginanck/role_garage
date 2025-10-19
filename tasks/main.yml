@@ -42,6 +42,14 @@
   ansible.builtin.include_tasks: cluster_init.yml
   when: garage_bootstrap_cluster | bool
 
+- name: Set installation changed flag
+  ansible.builtin.set_fact:
+    garage_installation_changed: true
+  when: >
+    garage_config_changed is changed or
+    (garage_service_file is defined and garage_service_file is changed) or
+    (garage_service_start is defined and garage_service_start is changed)
+
 - name: Display completion message
   ansible.builtin.debug:
     msg:
@@ -52,3 +60,4 @@
       - "Configuration file: {{ garage_config_file }}"
       - "Service status: systemctl status garage"
       - "Logs: journalctl -u garage -f"
+  when: garage_installation_changed | default(false)

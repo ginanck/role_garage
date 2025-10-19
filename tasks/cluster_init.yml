@@ -13,6 +13,14 @@
   changed_when: false
   failed_when: false
 
+- name: Get node ID using info command if status fails
+  ansible.builtin.command:
+    cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} node info"
+  register: garage_node_info_cmd
+  changed_when: false
+  failed_when: false
+  when: garage_cluster_status.rc != 0
+
 - name: Parse node ID from cluster status
   ansible.builtin.set_fact:
     garage_node_id: "{{ garage_cluster_status.stdout | regex_search('([a-f0-9]{16})\\s+\\S+\\s+' + garage_rpc_public_addr, '\\1') | first }}"
@@ -20,12 +28,25 @@
     - garage_cluster_status.rc == 0
     - garage_cluster_status.stdout is search(garage_rpc_public_addr)
 
+- name: Set node ID from info command
+  ansible.builtin.set_fact:
+    garage_node_id: "{{ garage_node_info_cmd.stdout | regex_search('Node ID: ([a-f0-9]+)', '\\1') | first }}"
+  when:
+    - garage_cluster_status.rc != 0
+    - garage_node_info_cmd.rc == 0
+    - garage_node_info_cmd.stdout is defined
+    - garage_node_info_cmd.stdout is search('Node ID:')
+
 - name: Display cluster status information
   ansible.builtin.debug:
     msg:
       - "Cluster status command result: {{ garage_cluster_status.rc }}"
       - "Node ID: {{ garage_node_id | default('not found') }}"
       - "Cluster mode: {{ garage_cluster_mode }}"
+      - "Status stdout: {{ garage_cluster_status.stdout | default('none') }}"
+      - "Status stderr: {{ garage_cluster_status.stderr | default('none') }}"
+      - "Node info result: {{ garage_node_info_cmd.rc | default('not run') }}"
+      - "Node info stdout: {{ garage_node_info_cmd.stdout | default('none') }}"
 
 - name: Check if layout is already configured
   ansible.builtin.command:
@@ -120,10 +141,13 @@
     cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} status"
   register: garage_final_status
   changed_when: false
+  failed_when: false
 
 - name: Display final cluster information
   ansible.builtin.debug:
     msg:
       - "=== Garage Cluster Status ==="
-      - "{{ garage_final_status.stdout_lines }}"
+      - "Status command result: {{ garage_final_status.rc }}"
+      - "{% if garage_final_status.rc == 0 %}{{ garage_final_status.stdout_lines }}{% else %}Cluster not yet configured - this is normal for a fresh installation{% endif %}"
+      - "{% if garage_final_status.rc != 0 and garage_final_status.stderr %}Error: {{ garage_final_status.stderr }}{% endif %}"
       - "==========================="

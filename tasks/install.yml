@@ -1,63 +1,47 @@
 ---
 # Binary installation tasks for Garage
 
-- name: Check if Garage binary exists and get version
+- name: Check if Garage is already installed
+  ansible.builtin.stat:
+    path: "{{ garage_bin_path }}"
+  register: garage_binary_exists
+
+- name: Get current Garage version if installed
   ansible.builtin.command:
     cmd: "{{ garage_bin_path }} --version"
-  register: garage_installed_version
+  register: garage_current_version_output
+  when: garage_binary_exists.stat.exists
   failed_when: false
   changed_when: false
 
-- name: Parse installed version
+- name: Set current version fact
   ansible.builtin.set_fact:
-    garage_current_version: "{{ garage_installed_version.stdout | regex_search('garage ([v0-9.]+)', '\\1') | first }}"
-  when: garage_installed_version.rc == 0
+    garage_current_version: "{{ garage_current_version_output.stdout | regex_search('garage ([v0-9.]+)', '\\1') | first | default('unknown') }}"
+  when: garage_binary_exists.stat.exists and garage_current_version_output.rc == 0
 
-- name: Display current installation status
+- name: Display installation status
   ansible.builtin.debug:
-    msg: "Current Garage version: {{ garage_current_version | default('not installed') }}, Target version: {{ garage_version }}"
+    msg: "Current: {{ garage_current_version | default('not installed') }} | Target: {{ garage_version }}"
 
-- name: Download Garage binary
-  ansible.builtin.get_url:
-    url: "{{ garage_download_url }}"
-    dest: "/tmp/garage-{{ garage_version }}"
-    mode: "{{ garage_file_mode }}"
-    timeout: "{{ garage_download_timeout }}"
-    force: true
-  register: garage_download
-  retries: "{{ garage_download_retries }}"
-  delay: 5
-  when: >
-    garage_current_version is not defined or
-    garage_current_version != garage_version
-  notify:
-    - restart garage
-
-- name: Verify downloaded binary is executable
-  ansible.builtin.command:
-    cmd: "/tmp/garage-{{ garage_version }} --version"
-  register: garage_verify_download
-  changed_when: false
-  when: garage_download is changed
-
-- name: Stop garage service before binary update
+- name: Stop Garage service if running
   ansible.builtin.systemd:
     name: garage
     state: stopped
   when:
-    - garage_download is changed
-    - garage_current_version is defined
+    - garage_binary_exists.stat.exists
+    - garage_current_version | default('') != garage_version
   failed_when: false
 
-- name: Install Garage binary
-  ansible.builtin.copy:
-    src: "/tmp/garage-{{ garage_version }}"
+- name: Download and install Garage binary
+  ansible.builtin.get_url:
+    url: "{{ garage_download_url }}"
     dest: "{{ garage_bin_path }}"
+    mode: "0755"
     owner: root
     group: root
-    mode: "{{ garage_file_mode }}"
-    remote_src: true
-  when: garage_download is changed
+    timeout: "{{ garage_download_timeout }}"
+    force: true
+  when: garage_current_version | default('') != garage_version
   notify:
     - restart garage
 
@@ -78,9 +62,3 @@
 - name: Display installation verification
   ansible.builtin.debug:
     msg: "Garage successfully installed: {{ garage_final_version.stdout }}"
-
-- name: Clean up temporary download file
-  ansible.builtin.file:
-    path: "/tmp/garage-{{ garage_version }}"
-    state: absent
-  when: garage_download is changed

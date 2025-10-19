@@ -89,11 +89,6 @@ garage_download_url: "https://garagehq.deuxfleurs.fr/_releases/{{ garage_version
 garage_download_timeout: 120
 garage_download_retries: 3
 
-# Security settings
-garage_file_mode: "0755"
-garage_config_mode: "0640"
-garage_data_mode: "0750"
-
 # Extensibility settings for future cluster support
 garage_cluster_mode: "single"  # single, cluster
 garage_cluster_nodes: []  # List of cluster nodes for future multi-node setup
