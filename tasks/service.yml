@@ -1,0 +1,103 @@
+---
+# Service management tasks for Garage
+
+- name: Check if systemd is available
+  ansible.builtin.stat:
+    path: /run/systemd/system
+  register: systemd_available
+
+- name: Fail if systemd is not available
+  ansible.builtin.fail:
+    msg: "This role requires systemd but it's not available on this system"
+  when: not systemd_available.stat.exists
+
+- name: Install Garage systemd service file
+  ansible.builtin.template:
+    src: garage.service.j2
+    dest: /etc/systemd/system/garage.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart garage
+  register: garage_service_file
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: garage_service_file is changed
+
+- name: Enable Garage service
+  ansible.builtin.systemd:
+    name: garage
+    enabled: "{{ garage_service_enabled }}"
+  notify:
+    - restart garage
+
+- name: Start Garage service
+  ansible.builtin.systemd:
+    name: garage
+    state: "{{ garage_service_state }}"
+  register: garage_service_start
+  when: garage_service_state == "started"
+
+- name: Wait for Garage service to be ready
+  ansible.builtin.wait_for:
+    port: "{{ garage_rpc_bind_addr.split(':')[-1] }}"
+    host: "{{ garage_rpc_bind_addr.split(':')[0].replace('[', '').replace(']', '') | regex_replace('^::', '0.0.0.0') }}"
+    delay: 5
+    timeout: 60
+  when: 
+    - garage_service_state == "started"
+    - garage_rpc_bind_addr != ""
+
+- name: Check Garage service status
+  ansible.builtin.systemd:
+    name: garage
+  register: garage_service_status
+
+- name: Display service status
+  ansible.builtin.debug:
+    msg:
+      - "Garage service status: {{ garage_service_status.status.ActiveState | default('unknown') }}"
+      - "Service enabled: {{ garage_service_status.status.UnitFileState | default('unknown') }}"
+      - "Main PID: {{ garage_service_status.status.MainPID | default('none') }}"
+
+- name: Verify Garage is responding
+  ansible.builtin.uri:
+    url: "http://{{ garage_rpc_public_addr.split(':')[0] }}:{{ garage_admin_api.api_bind_addr.split(':')[-1] }}/health"
+    method: GET
+    timeout: 10
+    headers:
+      Authorization: "Bearer {{ garage_admin_token_generated }}"
+  register: garage_health_check
+  failed_when: false
+  when: 
+    - garage_features.admin_api_enabled
+    - garage_service_state == "started"
+    - garage_admin_token_generated is defined
+
+- name: Display health check result
+  ansible.builtin.debug:
+    msg: "Garage health check: {{ 'healthy' if garage_health_check.status == 200 else 'unhealthy or admin API disabled' }}"
+  when: garage_health_check is defined
+
+- name: Create logrotate configuration for Garage
+  ansible.builtin.copy:
+    content: |
+      /var/log/garage/*.log {
+          daily
+          missingok
+          rotate 7
+          compress
+          delaycompress
+          notifempty
+          copytruncate
+          create 0644 {{ garage_user }} {{ garage_group }}
+      }
+    dest: /etc/logrotate.d/garage
+    owner: root
+    group: root
+    mode: "0644"
+  when: garage_systemd_service.log_to_file | default(false)

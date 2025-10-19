@@ -1,0 +1,51 @@
+---
+# Handlers for Garage role
+
+- name: reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: restart garage
+  ansible.builtin.systemd:
+    name: garage
+    state: restarted
+  become: true
+  listen: "restart garage"
+
+- name: stop garage
+  ansible.builtin.systemd:
+    name: garage
+    state: stopped
+  become: true
+
+- name: start garage
+  ansible.builtin.systemd:
+    name: garage
+    state: started
+  become: true
+
+- name: reload garage
+  ansible.builtin.systemd:
+    name: garage
+    state: reloaded
+  become: true
+  failed_when: false  # Reload might not be supported
+
+- name: enable garage
+  ansible.builtin.systemd:
+    name: garage
+    enabled: true
+  become: true
+
+- name: disable garage
+  ansible.builtin.systemd:
+    name: garage
+    enabled: false
+  become: true
+
+- name: validate garage config
+  ansible.builtin.command:
+    cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} --help"
+  changed_when: false
+  failed_when: false

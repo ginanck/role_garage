@@ -1,0 +1,53 @@
+---
+# Example variable configurations for different deployment scenarios
+
+# Single-node development setup
+garage_dev_config:
+  garage_version: "v2.1.0"
+  garage_log_level: "debug"
+  garage_db_engine: "sqlite"
+  garage_metadata_dir: "/tmp/garage/meta"
+  garage_data_dir: "/tmp/garage/data"
+  garage_features:
+    metrics_enabled: true
+    admin_api_enabled: true
+    k2v_enabled: true
+
+# Single-node production setup
+garage_prod_config:
+  garage_version: "v2.1.0"
+  garage_log_level: "info"
+  garage_db_engine: "lmdb"
+  garage_metadata_dir: "/opt/garage/meta"
+  garage_data_dir: "/opt/garage/data"
+  garage_s3_api:
+    s3_region: "production"
+    api_bind_addr: "0.0.0.0:3900"
+    root_domain: ".s3.company.com"
+  garage_admin_api:
+    api_bind_addr: "127.0.0.1:3903"
+  garage_features:
+    metrics_enabled: true
+    admin_api_enabled: true
+    k2v_enabled: false
+    website_enabled: true
+
+# Future multi-node cluster setup (extensibility example)
+garage_cluster_config:
+  garage_version: "v2.1.0"
+  garage_cluster_mode: "cluster"
+  garage_replication_factor: 3
+  garage_bootstrap_cluster: false
+  garage_cluster_nodes:
+    - name: "garage-node-1"
+      address: "10.0.1.10:3901"
+      zone: "dc1"
+      capacity: "100G"
+    - name: "garage-node-2"
+      address: "10.0.1.11:3901"
+      zone: "dc1"
+      capacity: "100G"
+    - name: "garage-node-3"
+      address: "10.0.1.12:3901"
+      zone: "dc2"
+      capacity: "100G"

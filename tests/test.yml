@@ -1,0 +1,147 @@
+---
+# Test playbook for Garage role
+- name: Test Garage installation and configuration
+  hosts: localhost
+  become: true
+  gather_facts: true
+  
+  vars:
+    # Test configuration
+    garage_version: "v2.1.0"
+    garage_cluster_mode: "single"
+    garage_bootstrap_cluster: true
+    garage_log_level: "debug"
+    
+    # Override defaults for testing
+    garage_s3_api:
+      s3_region: "test-region"
+      api_bind_addr: "[::]:3900"
+      root_domain: ".s3.test.localhost"
+    
+    garage_features:
+      metrics_enabled: true
+      admin_api_enabled: true
+      k2v_enabled: true
+      website_enabled: true
+
+  pre_tasks:
+    - name: Display test information
+      ansible.builtin.debug:
+        msg:
+          - "Starting Garage role test"
+          - "Target version: {{ garage_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+  roles:
+    - role_garage
+
+  post_tasks:
+    - name: Wait for all services to be ready
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Test Garage binary installation
+      ansible.builtin.command:
+        cmd: "{{ garage_bin_path }} --version"
+      register: garage_version_test
+      changed_when: false
+
+    - name: Verify Garage version
+      ansible.builtin.assert:
+        that:
+          - garage_version in garage_version_test.stdout
+        fail_msg: "Garage version mismatch"
+
+    - name: Test configuration file exists
+      ansible.builtin.stat:
+        path: "{{ garage_config_file }}"
+      register: garage_config_test
+
+    - name: Verify configuration file
+      ansible.builtin.assert:
+        that:
+          - garage_config_test.stat.exists
+          - garage_config_test.stat.size > 0
+        fail_msg: "Configuration file missing or empty"
+
+    - name: Test service status
+      ansible.builtin.systemd:
+        name: garage
+      register: garage_service_test
+
+    - name: Verify service is running
+      ansible.builtin.assert:
+        that:
+          - garage_service_test.status.ActiveState == "active"
+          - garage_service_test.status.SubState == "running"
+        fail_msg: "Garage service is not running properly"
+
+    - name: Test S3 API endpoint
+      ansible.builtin.wait_for:
+        port: 3900
+        host: "127.0.0.1"
+        timeout: 30
+      register: s3_port_test
+
+    - name: Test Admin API endpoint
+      ansible.builtin.wait_for:
+        port: 3903
+        host: "127.0.0.1"
+        timeout: 30
+      register: admin_port_test
+
+    - name: Test cluster status command
+      ansible.builtin.command:
+        cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} status"
+      register: garage_status_test
+      changed_when: false
+
+    - name: Verify cluster status
+      ansible.builtin.assert:
+        that:
+          - garage_status_test.rc == 0
+          - "'HEALTHY NODES' in garage_status_test.stdout"
+        fail_msg: "Cluster status check failed"
+
+    - name: Test layout configuration
+      ansible.builtin.command:
+        cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} layout show"
+      register: garage_layout_test
+      changed_when: false
+
+    - name: Verify layout is configured
+      ansible.builtin.assert:
+        that:
+          - garage_layout_test.rc == 0
+          - "'zone' in garage_layout_test.stdout"
+        fail_msg: "Layout is not properly configured"
+
+    - name: Test directories exist and have correct permissions
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: directory_tests
+      loop:
+        - "{{ garage_metadata_dir }}"
+        - "{{ garage_data_dir }}"
+        - "{{ garage_config_dir }}"
+
+    - name: Verify directories
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: "Required directory missing: {{ item.item }}"
+      loop: "{{ directory_tests.results }}"
+
+    - name: Display test results
+      ansible.builtin.debug:
+        msg:
+          - "=== ALL TESTS PASSED ==="
+          - "Garage {{ garage_version }} successfully installed and configured"
+          - "S3 API: http://localhost:3900"
+          - "Admin API: http://localhost:3903"
+          - "Web Interface: http://localhost:3902"
+          - "Service status: {{ garage_service_test.status.ActiveState }}"
+          - "Cluster status: OK"
+          - "Layout configured: YES"

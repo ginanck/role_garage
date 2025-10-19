@@ -1,0 +1,10 @@
+# Test inventory for Garage role
+localhost ansible_connection=local
+
+[garage-servers]
+localhost
+
+[garage-servers:vars]
+# Common configuration for all garage servers
+ansible_python_interpreter=auto
+

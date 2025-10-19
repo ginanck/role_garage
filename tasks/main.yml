@@ -1,0 +1,54 @@
+---
+# Main task file for Garage S3-compatible object storage role
+# This role supports single-node deployments and is designed to be extensible for future cluster setups
+
+- name: Validate architecture
+  ansible.builtin.fail:
+    msg: "Unsupported architecture: {{ ansible_architecture }}. Supported: {{ garage_arch_map.keys() | list }}"
+  when: ansible_architecture not in garage_arch_map.keys()
+
+- name: Set architecture variable
+  ansible.builtin.set_fact:
+    garage_architecture: "{{ garage_arch_map[ansible_architecture] }}"
+
+- name: Display Garage installation information
+  ansible.builtin.debug:
+    msg:
+      - "Installing Garage {{ garage_version }}"
+      - "Architecture: {{ garage_architecture }}"
+      - "Installation path: {{ garage_bin_path }}"
+      - "Configuration directory: {{ garage_config_dir }}"
+      - "Data directory: {{ garage_data_dir }}"
+      - "Cluster mode: {{ garage_cluster_mode }}"
+
+# User and directory setup
+- name: Include user and directory setup tasks
+  ansible.builtin.include_tasks: user_setup.yml
+
+# Binary installation
+- name: Include binary installation tasks
+  ansible.builtin.include_tasks: install.yml
+
+# Configuration management
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+
+# Service management
+- name: Include service management tasks
+  ansible.builtin.include_tasks: service.yml
+
+# Cluster initialization (single-node bootstrap or multi-node setup)
+- name: Include cluster initialization tasks
+  ansible.builtin.include_tasks: cluster_init.yml
+  when: garage_bootstrap_cluster | bool
+
+- name: Display completion message
+  ansible.builtin.debug:
+    msg:
+      - "Garage {{ garage_version }} installation completed successfully!"
+      - "S3 API endpoint: http://{{ garage_rpc_public_addr.split(':')[0] }}:3900"
+      - "Web interface: http://{{ garage_rpc_public_addr.split(':')[0] }}:3902"
+      - "Admin API: http://{{ garage_rpc_public_addr.split(':')[0] }}:3903"
+      - "Configuration file: {{ garage_config_file }}"
+      - "Service status: systemctl status garage"
+      - "Logs: journalctl -u garage -f"

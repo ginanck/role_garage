@@ -1,0 +1,72 @@
+---
+# Configuration tasks for Garage
+
+- name: Generate RPC secret if not provided
+  ansible.builtin.set_fact:
+    garage_rpc_secret_generated: "{{ garage_rpc_secret | default(lookup('password', '/dev/null chars=hexdigits length=64'), true) }}"
+
+- name: Generate admin token if not provided
+  ansible.builtin.set_fact:
+    garage_admin_token_generated: "{{ garage_admin_api.admin_token | default(lookup('password', '/dev/null chars=ascii_letters,digits length=32'), true) }}"
+  when: garage_features.admin_api_enabled
+
+- name: Generate metrics token if not provided
+  ansible.builtin.set_fact:
+    garage_metrics_token_generated: "{{ garage_admin_api.metrics_token | default(lookup('password', '/dev/null chars=ascii_letters,digits length=32'), true) }}"
+  when: garage_features.metrics_enabled
+
+- name: Validate configuration
+  ansible.builtin.assert:
+    that:
+      - garage_metadata_dir != garage_data_dir
+      - garage_replication_factor >= 1
+      - garage_replication_factor <= 3 or garage_cluster_mode == "cluster"
+    fail_msg: "Invalid configuration parameters"
+
+- name: Check if configuration file exists
+  ansible.builtin.stat:
+    path: "{{ garage_config_file }}"
+  register: garage_config_stat
+
+- name: Backup existing configuration
+  ansible.builtin.copy:
+    src: "{{ garage_config_file }}"
+    dest: "{{ garage_config_file }}.backup.{{ ansible_date_time.epoch }}"
+    remote_src: true
+  when: 
+    - garage_config_stat.stat.exists
+    - garage_config_stat.stat.size > 0
+
+- name: Generate Garage configuration file
+  ansible.builtin.template:
+    src: garage.toml.j2
+    dest: "{{ garage_config_file }}"
+    owner: root
+    group: "{{ garage_group }}"
+    mode: "{{ garage_config_mode }}"
+    backup: true
+  notify:
+    - restart garage
+  register: garage_config_changed
+
+- name: Validate configuration file syntax
+  ansible.builtin.command:
+    cmd: "{{ garage_bin_path }} -c {{ garage_config_file }} --help"
+  register: garage_config_validation
+  changed_when: false
+  failed_when: garage_config_validation.rc != 0
+
+- name: Display configuration file location
+  ansible.builtin.debug:
+    msg: 
+      - "Configuration file created: {{ garage_config_file }}"
+      - "RPC Secret: {{ garage_rpc_secret_generated[:8] }}... (truncated for security)"
+      - "Admin Token: {{ garage_admin_token_generated[:8] if garage_features.admin_api_enabled else 'disabled' }}... (truncated for security)"
+
+- name: Set facts for cluster initialization
+  ansible.builtin.set_fact:
+    garage_config_ready: true
+    garage_secrets:
+      rpc_secret: "{{ garage_rpc_secret_generated }}"
+      admin_token: "{{ garage_admin_token_generated | default('') }}"
+      metrics_token: "{{ garage_metrics_token_generated | default('') }}"

@@ -1,0 +1,46 @@
+---
+galaxy_info:
+  role_name: garage
+  author: "Your Name"
+  description: "Ansible role for installing and configuring Garage S3-compatible object storage"
+  company: ""
+  license: MIT
+  min_ansible_version: "2.10"
+  
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+    - name: Fedora
+      versions:
+        - "37"
+        - "38"
+        - "39"
+
+  galaxy_tags:
+    - garage
+    - s3
+    - object-storage
+    - storage
+    - distributed
+    - cloud
+    - selfhosted
+    - minio-alternative
+    - deuxfleurs
+    - rust
+
+dependencies: []
+
+collections:
+  - ansible.builtin
+  - community.general
