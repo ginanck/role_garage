@@ -47,7 +47,7 @@
   when:
     - garage_download is changed
     - garage_current_version is defined
-  ignore_errors: true
+  failed_when: false
 
 - name: Install Garage binary
   ansible.builtin.copy:

@@ -40,6 +40,10 @@
 
 # Single node cluster initialization
 - name: Initialize single-node cluster layout
+  when:
+    - garage_cluster_mode == "single"
+    - garage_node_id is defined
+    - garage_layout_status.rc != 0 or 'zone' not in garage_layout_status.stdout
   block:
     - name: Assign layout for single node
       ansible.builtin.command:
@@ -69,13 +73,11 @@
         msg: "Layout successfully configured: {{ garage_layout_verify.stdout_lines }}"
       when: garage_layout_verify.rc == 0
 
-  when:
-    - garage_cluster_mode == "single"
-    - garage_node_id is defined
-    - garage_layout_status.rc != 0 or 'zone' not in garage_layout_status.stdout
-
 # Multi-node cluster initialization (extensibility for future)
 - name: Multi-node cluster configuration placeholder
+  when:
+    - garage_cluster_mode == "cluster"
+    - garage_cluster_nodes | length > 0
   block:
     - name: Display multi-node setup message
       ansible.builtin.debug:
@@ -112,10 +114,6 @@
         owner: root
         group: "{{ garage_group }}"
         mode: "0640"
-
-  when:
-    - garage_cluster_mode == "cluster"
-    - garage_cluster_nodes | length > 0
 
 - name: Final cluster status check
   ansible.builtin.command:
