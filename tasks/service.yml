@@ -42,15 +42,58 @@
   register: garage_service_start
   when: garage_service_state == "started"
 
-- name: Wait for Garage service to be ready
-  ansible.builtin.wait_for:
-    port: "{{ garage_rpc_bind_addr.split(':')[-1] }}"
-    host: "{{ garage_rpc_bind_addr.split(':')[0].replace('[', '').replace(']', '') | regex_replace('^::', '0.0.0.0') }}"
-    delay: 5
-    timeout: 60
+- name: Check service logs if start failed
+  ansible.builtin.command:
+    cmd: journalctl -u garage --no-pager -n 20
+  register: garage_logs
   when:
     - garage_service_state == "started"
-    - garage_rpc_bind_addr != ""
+    - garage_service_start is failed
+  failed_when: false
+
+- name: Display service logs if there are issues
+  ansible.builtin.debug:
+    var: garage_logs.stdout_lines
+  when:
+    - garage_service_state == "started"
+    - garage_service_start is failed
+    - garage_logs is defined
+
+- name: Wait for Garage RPC port to be available
+  ansible.builtin.wait_for:
+    port: 3901
+    host: "127.0.0.1"
+    delay: 5
+    timeout: 30
+  when: garage_service_state == "started"
+  register: garage_port_check
+  failed_when: false
+
+- name: Check service status after port check
+  ansible.builtin.systemd:
+    name: garage
+  register: garage_status_check
+  when: garage_service_state == "started"
+
+- name: Get recent service logs for debugging
+  ansible.builtin.command:
+    cmd: journalctl -u garage --no-pager -n 10
+  register: garage_recent_logs
+  when:
+    - garage_service_state == "started"
+    - garage_port_check is failed
+  failed_when: false
+
+- name: Display debugging information if port check failed
+  ansible.builtin.debug:
+    msg:
+      - "Port check result: {{ garage_port_check.msg | default('success') }}"
+      - "Service status: {{ garage_status_check.status.ActiveState | default('unknown') }}"
+      - "Recent logs:"
+      - "{{ garage_recent_logs.stdout_lines | default(['No logs available']) }}"
+  when:
+    - garage_service_state == "started"
+    - garage_port_check is failed
 
 - name: Check Garage service status
   ansible.builtin.systemd:
