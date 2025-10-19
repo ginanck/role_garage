@@ -27,7 +27,7 @@
   ansible.builtin.systemd:
     name: garage
     state: stopped
-  when: 
+  when:
     - garage_binary_exists.stat.exists
     - garage_current_version | default('') != garage_version
   failed_when: false
