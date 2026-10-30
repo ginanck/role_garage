@@ -22,7 +22,7 @@ on:
         options:
           - all
           - default
-          - ubuntu2404
+          - rockylinux-9
       python_version:
         description: 'Python version to use'
         required: false
@@ -83,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: ${{ (github.event.inputs.molecule_scenario || 'all') == 'all' && fromJson('["default", "ubuntu2404"]') || fromJson(format('["{0}"]', github.event.inputs.molecule_scenario || 'all')) }}
+        scenario: ${{ (github.event.inputs.molecule_scenario || 'all') == 'all' && fromJson('["default", "rockylinux-9"]') || fromJson(format('["{0}"]', github.event.inputs.molecule_scenario || 'all')) }}
     env:
       DOCKER_HOST: 'unix:///var/run/docker.sock'
     steps:
